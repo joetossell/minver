@@ -52,7 +52,8 @@ _NOTE: The MinVer package reference should normally include `PrivateAssets="All"
   - The commit history is searched for the latest commit with a version tag.
     - If a commit with a version tag is found:
       - If the version is a [pre-release](https://semver.org/spec/v2.0.0.html#spec-item-9):
-        - The version is used as-is, with [height](#height) added.
+        - The version is used as the minimum major minor
+        - The search continues for latest RTM version tag
       - If the version is RTM (not pre-release):
         - The patch number is incremented, but this [can be customised](#can-i-auto-increment-the-minor-or-major-version-after-an-rtm-tag-instead-of-the-patch-version).
         - Default pre-release identifiers are added. The default identifiers are `alpha.0`, but this [can be customised](#can-i-change-the-default-pre-release-identifiers-from-alpha0-to-something-else).
