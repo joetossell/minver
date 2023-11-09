@@ -1,5 +1,3 @@
-#pragma warning disable CA1812 // https://github.com/dotnet/roslyn-analyzers/issues/5628
-#pragma warning disable CA1852 // https://github.com/dotnet/roslyn-analyzers/issues/6141
 using System;
 using System.IO;
 using System.Linq;
@@ -11,7 +9,9 @@ using Version = MinVer.Lib.Version;
 
 var informationalVersion = typeof(Versioner).Assembly.GetCustomAttributes<AssemblyInformationalVersionAttribute>().Single().InformationalVersion;
 
-using var app = new CommandLineApplication { Name = "minver", FullName = $"MinVer CLI {informationalVersion}", };
+using var app = new CommandLineApplication();
+app.Name = "minver";
+app.FullName = $"MinVer CLI {informationalVersion}";
 
 app.HelpOption();
 

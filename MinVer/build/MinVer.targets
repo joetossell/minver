@@ -9,8 +9,7 @@
   <PropertyGroup>
     <MinVerDetailed>low</MinVerDetailed>
     <MinVerDetailed Condition="'$(MinVerVerbosity)' == 'detailed' Or '$(MinVerVerbosity)' == 'd' Or '$(MinVerVerbosity)' == 'diagnostic' Or '$(MinVerVerbosity)' == 'diag'">high</MinVerDetailed>
-    <MinVerTargetFramework>netcoreapp3.1</MinVerTargetFramework>
-    <MinVerTargetFramework Condition="'$(MSBuildAssemblyVersion)' &gt;= '17.0'">net6.0</MinVerTargetFramework>
+    <MinVerTargetFramework>net6.0</MinVerTargetFramework>
     <MinVerTargetFramework Condition="'$(MSBuildAssemblyVersion)' &gt;= '17.4'">net7.0</MinVerTargetFramework>
     <NoWarn>$(NoWarn);NU5105</NoWarn>
   </PropertyGroup>
@@ -63,8 +62,10 @@
       <MinVerBuildMetadata Condition="$(MinVerVersion.Contains(`+`))">$(MinVerVersion.Split(`+`, 2)[1])</MinVerBuildMetadata>
       <AssemblyVersion>$(MinVerMajor).0.0.0</AssemblyVersion>
       <FileVersion>$(MinVerMajor).$(MinVerMinor).$(MinVerPatch).0</FileVersion>
-      <PackageVersion>$(MinVerVersion)</PackageVersion>
-      <Version>$(MinVerVersion)</Version>
+      <InformationalVersion>$(MinVerVersion)</InformationalVersion>
+      <PackageVersion>$(MinVerMajor).$(MinVerMinor).$(MinVerPatch)</PackageVersion>
+      <PackageVersion Condition="'$(MinVerPreRelease)' != ''">$(PackageVersion)-$(MinVerPreRelease)</PackageVersion>
+      <Version>$(PackageVersion)</Version>
     </PropertyGroup>
     <Message Importance="$(MinVerDetailed)" Text="MinVer: [output] MinVerVersion=$(MinVerVersion)" />
     <Message Importance="$(MinVerDetailed)" Text="MinVer: [output] MinVerMajor=$(MinVerMajor)" />
@@ -74,6 +75,7 @@
     <Message Importance="$(MinVerDetailed)" Text="MinVer: [output] MinVerBuildMetadata=$(MinVerBuildMetadata)" />
     <Message Importance="$(MinVerDetailed)" Text="MinVer: [output] AssemblyVersion=$(AssemblyVersion)" />
     <Message Importance="$(MinVerDetailed)" Text="MinVer: [output] FileVersion=$(FileVersion)" />
+    <Message Importance="$(MinVerDetailed)" Text="MinVer: [output] InformationalVersion=$(InformationalVersion)" />
     <Message Importance="$(MinVerDetailed)" Text="MinVer: [output] PackageVersion=$(PackageVersion)" />
     <Message Importance="$(MinVerDetailed)" Text="MinVer: [output] Version=$(Version)" />
   </Target>

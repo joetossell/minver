@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.Loader;
 using System.Threading.Tasks;
 using Microsoft.Extensions.FileSystemGlobbing;
@@ -117,14 +118,15 @@ $@"{{
             _ = environmentVariables.TryAdd("GeneratePackageOnBuild", "true");
             _ = environmentVariables.TryAdd("NoPackageAnalysis", "true");
 
+            // -maxCpuCount:1 is required to prevent massive execution times in GitHub Actions
             var (standardOutput, standardError) = await DotNet(
-                $"build --no-restore{(!Version.StartsWith("2.", StringComparison.Ordinal) ? " --nologo" : "")}",
+                $"build -maxCpuCount:1 --no-restore{(!Version.StartsWith("2.", StringComparison.Ordinal) ? " --nologo" : "")}",
                 path,
                 environmentVariables,
                 handleExitCode).ConfigureAwait(false);
 
             var matcher = new Matcher().AddInclude("**/bin/Debug/*.nupkg");
-            var packageFileNames = matcher.GetResultsInFullPath(path).OrderBy(_ => _);
+            var packageFileNames = matcher.GetResultsInFullPath(path).OrderBy(result => result);
             var getPackages = packageFileNames.Select(async fileName => await GetPackage(fileName).ConfigureAwait(false));
             var packages = await Task.WhenAll(getPackages).ConfigureAwait(false);
 
@@ -137,8 +139,9 @@ $@"{{
             _ = environmentVariables.TryAdd("MinVerVerbosity".ToAltCase(), "diagnostic");
             _ = environmentVariables.TryAdd("NoPackageAnalysis", "true");
 
+            // -maxCpuCount:1 is required to prevent massive execution times in GitHub Actions
             return await DotNet(
-                $"pack --no-restore{(!Version.StartsWith("2.", StringComparison.Ordinal) ? " --nologo" : "")}",
+                $"pack -maxCpuCount:1 --no-restore{(!Version.StartsWith("2.", StringComparison.Ordinal) ? " --nologo" : "")}",
                 path,
                 environmentVariables).ConfigureAwait(false);
         }
@@ -169,23 +172,26 @@ $@"{{
 
             var assemblyFileName = Directory.EnumerateFiles(extractedDirectoryName, "*.dll", new EnumerationOptions { RecurseSubdirectories = true, }).First();
 
-            var systemAssemblyVersion = GetAssemblyVersion(assemblyFileName);
+            var (systemAssemblyVersion, informationalVersion) = GetAssemblyVersions(assemblyFileName);
             var assemblyVersion = new AssemblyVersion(systemAssemblyVersion.Major, systemAssemblyVersion.Minor, systemAssemblyVersion.Build, systemAssemblyVersion.Revision);
 
             var fileVersionInfo = FileVersionInfo.GetVersionInfo(assemblyFileName);
             var fileVersion = new FileVersion(fileVersionInfo.FileMajorPart, fileVersionInfo.FileMinorPart, fileVersionInfo.FileBuildPart, fileVersionInfo.FilePrivatePart, fileVersionInfo.ProductVersion ?? "");
 
-            return new Package(nuspecVersion, assemblyVersion, fileVersion);
+            return new Package(nuspecVersion, assemblyVersion, fileVersion, informationalVersion);
         }
 
-        private static Version GetAssemblyVersion(string assemblyFileName)
+        private static (Version Version, string InformationalVersion) GetAssemblyVersions(string assemblyFileName)
         {
             var assemblyLoadContext = new AssemblyLoadContext(default, true);
             var assembly = assemblyLoadContext.LoadFromAssemblyPath(assemblyFileName);
 
             try
             {
-                return assembly.GetName().Version ?? throw new InvalidOperationException("The assembly version is null.");
+                return (
+                    assembly.GetName().Version ?? throw new InvalidOperationException("The assembly version is null."),
+                    assembly.GetCustomAttributes().OfType<AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion ??
+                        throw new InvalidOperationException("The assembly has no informational version."));
             }
             finally
             {

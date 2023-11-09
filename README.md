@@ -26,7 +26,7 @@ Also available as a [command-line tool](#can-i-use-minver-to-version-software-wh
 
 ## Prerequisites
 
-- [.NET Core SDK 3.1 or later](https://www.microsoft.com/net/download)
+- [.NET SDK 6.0 or later](https://www.microsoft.com/net/download)
 - [Git](https://git-scm.com/)
 
 ## Quick start
@@ -36,11 +36,20 @@ Also available as a [command-line tool](#can-i-use-minver-to-version-software-wh
 
 Your project will be versioned according to the latest tag found in the commit history.
 
-**To build with GitHub Actions, [set the fetch depth appropriately](#why-is-the-default-version-sometimes-used-in-github-actions-and-travis-ci-when-a-version-tag-exists-in-the-history).**
+**To build with GitHub Actions, [set the fetch depth appropriately](#why-is-the-default-version-sometimes-used-in-github-actions-azure-pipelines-and-travis-ci-when-a-version-tag-exists-in-the-history).**
 
 ## Usage
 
-When you want to release a version of your software, whether it's a pre-release, RTM, patch, or anything else, simply create a tag with a name which is a valid [SemVer 2.x](https://semver.org/spec/v2.0.0.html) version and build your projects. MinVer will apply the version to the assemblies and packages. (If you like to prefix your tag names, see the [FAQ](#can-i-prefix-my-tag-names).)
+When you want to release a version of your software, whether it's a pre-release, RTM, patch, or anything else, simply create a tag on the commit you want to release with a name which is a valid [SemVer 2.x](https://semver.org/spec/v2.0.0.html) version. For example:
+
+```shell
+git tag 1.2.3
+git push --tags
+```
+
+When you build your software from the commit with that tag, MinVer will apply the version to the assemblies and packages. (If you like to prefix your tag names, see the [FAQ](#can-i-prefix-my-tag-names).)
+
+Bear in mind that MinVer is unaware of the branches which contain the commit, nor your release process, so [it is compatible with any branching or release strategy you choose](#can-i-use-my-own-branching-strategy).
 
 _NOTE: The MinVer package reference should normally include `PrivateAssets="All"`. See [NuGet docs](https://docs.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files#controlling-dependency-assets) for more info. If you install MinVer using an IDE or tool, this should be done for you automatically._
 
@@ -81,12 +90,13 @@ MinVer sets the following custom properties:
 
 Those properties are used to set the following .NET SDK properties, satisfying the official [open-source library guidance for version numbers](https://docs.microsoft.com/en-ca/dotnet/standard/library-guidance/versioning#version-numbers):
 
-| Property          | Value                                         |
-| ----------------- | --------------------------------------------- |
-| `AssemblyVersion` | `{MinVerMajor}.0.0.0`                         |
-| `FileVersion`     | `{MinVerMajor}.{MinVerMinor}.{MinVerPatch}.0` |
-| `PackageVersion`  | `{MinVerVersion}`                             |
-| `Version`         | `{MinVerVersion}`                             |
+| Property               | Value                                                                                                           |
+|------------------------|-----------------------------------------------------------------------------------------------------------------|
+| `AssemblyVersion`      | `{MinVerMajor}.0.0.0`                                                                                           |
+| `FileVersion`          | `{MinVerMajor}.{MinVerMinor}.{MinVerPatch}.0`                                                                   |
+| `InformationalVersion` | `{MinVerVersion}`                                                                                               |
+| `PackageVersion`       | `{MinVerMajor}.{MinVerMinor}.{MinVerPatch}` (or `{MinVerMajor}.{MinVerMinor}.{MinVerPatch}-{MinVerPreRelease}`) |
+| `Version`              | `{MinVerMajor}.{MinVerMinor}.{MinVerPatch}` (or `{MinVerMajor}.{MinVerMinor}.{MinVerPatch}-{MinVerPreRelease}`) |
 
 This behaviour can be [customised](#can-i-use-the-version-calculated-by-minver-for-other-purposes).
 
@@ -129,7 +139,7 @@ Note that the names of the MSBuild properties and environment variables are case
 - [Can I disable MinVer?](#can-i-disable-minver) _(yes)_
 - [What if the history diverges, and more than one tag or root commit is found?](#what-if-the-history-diverges-and-more-than-one-tag-or-root-commit-is-found) _(nothing bad)_
 - [What if the history diverges, and then converges again, before the latest tag (or root commit) is found?](#what-if-the-history-diverges-and-then-converges-again-before-the-latest-tag-or-root-commit-is-found) _(nothing bad)_
-- [Why is the default version sometimes used in GitHub Actions and Travis CI when a version tag exists in the history?](#why-is-the-default-version-sometimes-used-in-github-actions-and-travis-ci-when-a-version-tag-exists-in-the-history) _(shallow clones)_
+- [Why is the default version sometimes used in GitHub Actions, Azure Pipelines, and Travis CI when a version tag exists in the history?](#why-is-the-default-version-sometimes-used-in-github-actions-azure-pipelines-and-travis-ci-when-a-version-tag-exists-in-the-history) _(shallow clones)_
 - [Why is my version tag ignored?](#why-is-my-version-tag-ignored) _(MinVer is not running, the tag is misplaced, the version is superseded, the prefix is wrong, or the version is not valid SemVer 2.0)_
 <!-- spell-checker:enable -->
 
@@ -241,6 +251,17 @@ environment:
 
 You can also specify build metadata in a version tag. If the tag is on the current commit, its build metadata will be used. If the tag is on an older commit, its build metadata will be ignored. Build metadata in `MinVerBuildMetadata` will be appended to build metadata in the tag.
 
+Build metadata is only included in the [assembly informational version](https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/versioning#assembly-informational-version). You can include it elsewhere using a custom target. E.g.:
+
+```xml
+<Target Name="MyTarget" AfterTargets="MinVer" Condition="'$(MinVerBuildMetadata)' != ''" >
+  <PropertyGroup>
+    <PackageVersion>$(PackageVersion)+$(MinVerBuildMetadata)</PackageVersion>
+    <Version>$(PackageVersion)</Version>
+  </PropertyGroup>
+</Target>
+```
+
 ### Can I auto-increment the minor or major version after an RTM tag instead of the patch version?
 
 Yes! Specify which part of the version to auto-increment with `MinVerAutoIncrement`. By default, [MinVer will auto-increment the patch version](#how-it-works), but you can specify `minor` or `major` to increment the minor or major version instead.
@@ -269,7 +290,6 @@ For example, for pull requests, you may want to inject the pull request number a
 <Target Name="MyTarget" AfterTargets="MinVer" Condition="'$(APPVEYOR_PULL_REQUEST_NUMBER)' != ''" >
   <PropertyGroup>
     <PackageVersion>$(MinVerMajor).$(MinVerMinor).$(MinVerPatch)-pr.$(APPVEYOR_PULL_REQUEST_NUMBER).build-id.$(APPVEYOR_BUILD_ID).$(MinVerPreRelease)</PackageVersion>
-    <PackageVersion Condition="'$(MinVerBuildMetadata)' != ''">$(PackageVersion)+$(MinVerBuildMetadata)</PackageVersion>
     <Version>$(PackageVersion)</Version>
   </PropertyGroup>
 </Target>
@@ -369,18 +389,27 @@ MinVer will use the tag with the higher version, or the tag or root commit on th
 
 MinVer will use the height on the first path followed where the history diverges. The paths are followed in the same order that the parents of the commit are stored in git. The first parent is the commit on the branch that was the current branch when the merge was performed. The remaining parents are stored in the order that their branches were specified in the merge command.
 
-### Why is the default version sometimes used in GitHub Actions and Travis CI when a version tag exists in the history?
+### Why is the default version sometimes used in GitHub Actions, Azure Pipelines and Travis CI when a version tag exists in the history?
 
-By default, [GitHub Actions](https://github.com/features/actions/) and [Travis CI](https://travis-ci.org/) use [shallow clones](https://www.git-scm.com/docs/git-clone#Documentation/git-clone.txt---depthltdepthgt). The GitHub Actions [checkout action](https://github.com/actions/checkout) clones with a depth of only a single commit, and Travis CI clones with a depth of 50 commits. In GitHub Actions, if the latest version tag in the history is not on the current commit, it will not be found. In Travis CI, if the latest version tag in the history is at a height of more than 50 commits, it will not be found.
+By default, [GitHub Actions](https://github.com/features/actions/), [Azure Pipelines](https://azure.microsoft.com/en-us/products/devops/pipelines), and [Travis CI](https://travis-ci.org/) use [shallow clones](https://www.git-scm.com/docs/git-clone#Documentation/git-clone.txt---depthltdepthgt). The GitHub Actions [checkout action](https://github.com/actions/checkout) and Azure Pipelines default [checkout step](https://learn.microsoft.com/en-us/azure/devops/pipelines/yaml-schema/steps-checkout) both clone with a depth of only a single commit, and Travis CI clones with a depth of 50 commits. In GitHub Actions and Azure Pipelines, if the latest version tag in the history is not on the current commit, it will not be found. In Travis CI, if the latest version tag in the history is at a height of more than 50 commits, it will not be found.
 
-To build in GitHub Actions or Travis CI, configure them to fetch a sufficient number of commits.
+To build in GitHub Actions, Azure Pipelines, or Travis CI, configure them to fetch a sufficient number of commits.
 
-For GitHub Actions, set the `fetch-depth` of the [checkout action](https://github.com/actions/checkout) to an appropriate number, or to zero for all commits. For example:
+For GitHub Actions, set the `fetch-depth` of the [checkout action](https://github.com/actions/checkout) to an appropriate number, or to zero for all commits (you can also set `filter` to `tree:0` to create a [treeless clone](https://github.blog/2020-12-21-get-up-to-speed-with-partial-clone-and-shallow-clone/), for better performance). For example:
 
 ```yaml
-- uses: actions/checkout@v2
+- uses: actions/checkout@v4
   with:
     fetch-depth: 0
+    filter: tree:0
+```
+
+For Azure Pipelines, include an explicit [checkout step](https://learn.microsoft.com/en-us/azure/devops/pipelines/yaml-schema/steps-checkout) and set the `fetchDepth` to an appropriate number, or to zero for all commits:
+
+```yaml
+steps:
+  - checkout: self
+    fetchDepth: 0
 ```
 
 For Travis CI, set the [`--depth` flag](https://docs.travis-ci.com/user/customizing-the-build#git-clone-depth) to an appropriate number, or to `false` for all commits:

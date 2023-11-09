@@ -17,87 +17,81 @@ jobs:
               os: macos-11
             tests:
               framework: net6.0
-              sdk: "6.0.403"
+              sdk: "6.0.414"
               sdk-major-minor: "6.0"
           # current macOS, latest LTS and latest
           - job:
               os: macos-12
             tests:
               framework: net6.0
-              sdk: "6.0.403"
+              sdk: "6.0.414"
               sdk-major-minor: "6.0"
           - job:
               os: macos-12
             tests:
               framework: net7.0
-              sdk: "7.0.100"
+              sdk: "7.0.401"
               sdk-major-minor: "7.0"
           # old Linux, latest LTS
           - job:
               os: ubuntu-20.04
             tests:
               framework: net6.0
-              sdk: "6.0.403"
+              sdk: "6.0.414"
               sdk-major-minor: "6.0"
           # current Linux, all
           - job:
               os: ubuntu-22.04
             tests:
-              framework: netcoreapp3.1
-              sdk: "3.1.425"
-              sdk-major-minor: "3.1"
-          - job:
-              os: ubuntu-22.04
-            tests:
               framework: net6.0
-              sdk: "6.0.403"
+              sdk: "6.0.414"
               sdk-major-minor: "6.0"
           - job:
               os: ubuntu-22.04
               upload: true
             tests:
               framework: net7.0
-              sdk: "7.0.100"
+              sdk: "7.0.401"
               sdk-major-minor: "7.0"
           # old Windows, latest LTS
           - job:
               os: windows-2019
             tests:
               framework: net6.0
-              sdk: "6.0.403"
+              sdk: "6.0.414"
               sdk-major-minor: "6.0"
           # current Windows, latest LTS and latest
           - job:
               os: windows-2022
             tests:
               framework: net6.0
-              sdk: "6.0.403"
+              sdk: "6.0.414"
               sdk-major-minor: "6.0"
           - job:
               os: windows-2022
             tests:
               framework: net7.0
-              sdk: "7.0.100"
+              sdk: "7.0.401"
               sdk-major-minor: "7.0"
     name: ${{ matrix.job.os }}-sdk-${{ matrix.tests.sdk-major-minor }}
     runs-on: ${{ matrix.job.os }}
     steps:
-      - uses: actions/setup-dotnet@v3.0.3
+      - uses: actions/setup-dotnet@v3.2.0
         with:
           dotnet-version: |
             ${{ matrix.tests.sdk }}
-            7.0.100
+            7.0.401
       - run: dotnet --info
       - run: git --version
-      - uses: actions/checkout@v3.1.0
+      - uses: actions/checkout@v4.1.1
       - env:
           CI_NUMBER: ${{ github.run_number }}
-          MINVER_VERSION: ${{ secrets.MINVER_VERSION }}
+          MINVER_VERSION: ${{ vars.MINVER_VERSION }}
           MINVER_TESTS_SDK: ${{ matrix.tests.sdk }}
           MINVER_TESTS_FRAMEWORK: ${{ matrix.tests.framework }}
         run: ./build --verbose
       - if: matrix.job.upload
-        uses: actions/upload-artifact@v3.1.1
+        uses: actions/upload-artifact@v3.1.3
         with:
           name: NuGet packages
           path: ./**/*.nupkg

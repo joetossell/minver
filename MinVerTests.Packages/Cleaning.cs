@@ -10,10 +10,7 @@ namespace MinVerTests.Packages;
 
 public static class Cleaning
 {
-    [RestrictedTheory(
-        new[] { "^3.*", "^5.*", "^6.*", },
-        new[] { "OSX", },
-        "With an SDK less than what's being used to run this test, or on macOS, there is sometimes a 15 minute delay after the `dotnet build` command when multi-targeting")]
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public static async Task PackagesAreCleaned(bool multiTarget)
@@ -32,7 +29,8 @@ public static class Cleaning
         Assert.NotEmpty(packages.GetResultsInFullPath(path));
 
         // act
-        _ = await Sdk.DotNet("clean", path, new Dictionary<string, string> { { "GeneratePackageOnBuild", "true" }, });
+        // -maxCpuCount:1 is required to prevent massive execution times in GitHub Actions
+        _ = await Sdk.DotNet("clean -maxCpuCount:1", path, new Dictionary<string, string> { { "GeneratePackageOnBuild", "true" }, });
 
         // assert
         Assert.Empty(packages.GetResultsInFullPath(path));
